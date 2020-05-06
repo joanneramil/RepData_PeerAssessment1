@@ -7,19 +7,128 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r echo=TRUE}
+unzip("activity.zip")
+data <- read.csv("activity.csv", na.strings = "NA")
+head(data)
+```
 
-
+## Loading packages
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(dplyr)
+library(ggplot2)
+```
 
 ## What is mean total number of steps taken per day?
+The following code creates a new dataset by compiling the total number of steps per day.
+```{r echo=TRUE}
+data_sum <- aggregate(steps ~ date, data, sum)
+```
 
+The following code creates a histogram of the total number of steps per day.  
+```{r echo=TRUE}
+hist(data_sum$steps, 
+     main="Histogram of Total Number of Steps",
+     xlab="Total number of Steps")
+```  
+
+The following code calculates the mean and median of the total number of steps per day.
+```{r echo=TRUE}
+mean_steps <- round(mean(data_sum$steps),2)
+median_steps <- median(data_sum$steps)
+```  
+The mean number of steps is `r as.character(mean_steps,2)` and the median number of steps is `r median_steps`.
 
 
 ## What is the average daily activity pattern?
+The following code creates a new dataset by compiling the average number of steps taken by interval.
+```{r echo=TRUE}
+data_int <- aggregate(steps ~ interval, data, mean)
+```
+The following code creates a time series plot of the 5-minute interval and average number of steps taken.
+```{r echo=TRUE}
+with(data_int, plot(steps ~ interval, type = "l",
+     main="Average Number of Steps by Intervals",
+     xlab="Interval",
+     ylab="Average Number of Steps"))
+```
 
+
+The following code calculates the maximum number of steps.
+```{r echo=TRUE}
+max_steps <- max(data_int$steps)
+```
+The maximum number of steps is `round(r max_steps,2)`.
 
 
 ## Imputing missing values
+The following code counts the number of rows with missing data.
+```{r echo=TRUE}
+missing <- sum(is.na(data))
+```
+The number of missing values is `r missing`.
+
+The following code creates a new dataset from a function that replaces missing values with the mean number of steps by date.
+```{r echo=TRUE}
+data_new <- data
+index <- which(is.na(data_new$steps))
+l <- length(index)
+steps_mean <- with(data_new, tapply(steps, date, mean, na.rm=TRUE))
+na <- mean(steps_mean, na.rm=TRUE)
+for (i in 1:l) {
+        data_new[index[i], 1] <- na
+}
+```
+
+The following code creates a new dataset by compiling the total number of steps per day.
+```{r echo=TRUE}
+data_sum_new <- aggregate(steps ~ date, data_new, sum)
+```
+
+The following code creates a histogram of the total number of steps per day.  
+```{r echo=TRUE}
+hist(data_sum_new$steps, 
+     main="Histogram of Total Number of Steps",
+     xlab="Total number of Steps")
+```  
+
+The following code calculates the mean and median of the total number of steps per day.
+```{r echo=TRUE}
+mean_steps_new <- round(mean(data_sum_new$steps),2)
+median_steps_new <- round(median(data_sum_new$steps),2)
+```  
+The mean number of steps is `r as.character(mean_steps_new)` and the median number of steps is `r as.character(median_steps_new)`. 
+
+These values are different from the previous values (mean = `r as.character(mean_steps)`; median = `r as.character(median_steps)`).
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+The following code creates a new variable that indicates whether the date occurs on a weekend or weekday.
+```{r}
+data_new$date <- as.Date(as.character(data_new$date), "%Y-%m-%d")
+data_new$dayofweek <- weekdays(data_new$date)
+data_new$day <- data_new$dayofweek
+for (i in 1:nrow(data_new)) {
+        if(data_new[i, ]$day %in% c("Saturday", "Sunday")) {
+                data_new[i, ]$day <- "Weekend"
+        }
+        else{
+                data_new[i, ]$day <- "Weekday"
+        }
+}
+```
+
+The following code creates a new dataset of average steps by weekday/weekend.
+```{r echo=TRUE}
+mean_weekend <- aggregate(steps ~ interval + day, data_new, mean)
+```
+
+The following code creates a time series plot that splits the average number of steps by weekday/weekend.
+```{r echo=TRUE}
+g <- ggplot(mean_weekend, aes(interval, steps))
+g + geom_line() + 
+        facet_wrap(~day, nrow=2) + 
+        labs(x = "Interval",
+             y = "Number of Steps")
+```
